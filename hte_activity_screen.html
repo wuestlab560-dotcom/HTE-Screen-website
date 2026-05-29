@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTE Activity Screen — Pooling & Deconvolution</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg:       #0d0f14;
+    --surface:  #141720;
+    --surface2: #1c2030;
+    --border:   #2a3045;
+    --accent:   #00e5ff;
+    --accent2:  #ff6b35;
+    --accent3:  #7cfc64;
+    --text:     #e2e8f0;
+    --muted:    #6b7a99;
+    --hit:      #ff4757;
+    --row-c:    #4E79A7;
+    --col-c:    #F28E2B;
+    --diag-c:   #59A14F;
+    --dmso-c:   #E15759;
+    --media-c:  #76B7B2;
+    --kill-c:   #B07AA1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--surface);
+  }
+  .logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 1px solid var(--accent);
+    padding: 4px 10px;
+  }
+  header h1 {
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+  header h1 span { color: var(--text); font-weight: 500; }
+
+  /* ── Nav Tabs ── */
+  nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0 32px;
+  }
+  .tab {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    padding: 12px 24px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    transition: color .2s, border-color .2s;
+    user-select: none;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 10px;
+    padding: 1px 6px;
+    color: var(--muted);
+  }
+  .tab.done .badge { background: #1a3020; border-color: var(--accent3); color: var(--accent3); }
+
+  /* ── Main layout ── */
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px;
+  }
+  .phase { display: none; }
+  .phase.active { display: block; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px; height: 14px;
+    background: var(--accent);
+  }
+
+  /* ── Form elements ── */
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.04em;
+  }
+  input[type=number], input[type=text], textarea, select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    padding: 9px 12px;
+    width: 100%;
+    transition: border-color .2s;
+    outline: none;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 100px; }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .form-group { display: flex; flex-direction: column; }
+
+  /* ── Buttons ── */
+  .btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 10px 22px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--accent); color: #000; font-weight: 600; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-accent2 { background: var(--accent2); color: #fff; font-weight: 600; }
+  .btn-accent3 { background: var(--accent3); color: #000; font-weight: 600; }
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  /* ── Stats row ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px 16px;
+  }
+  .stat-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-lbl { font-size: 11px; color: var(--muted); }
+
+  /* ── 96-well plate ── */
+  #plate-canvas { border: 1px solid var(--border); border-radius: 3px; background: var(--surface2); }
+
+  /* ── Heatmap / volcano canvas ── */
+  .canvas-wrap { position: relative; }
+  canvas { display: block; }
+
+  /* ── Table ── */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: 'IBM Plex Mono', monospace; }
+  th { text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border); color: var(--muted); font-weight: 500; font-size: 11px; letter-spacing: .06em; }
+  td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: var(--surface2); }
+  .hit-row td { color: var(--hit); }
+  .badge-hit { background: #2a0a0a; color: var(--hit); border: 1px solid var(--hit); padding: 2px 7px; border-radius: 3px; font-size: 10px; }
+  .badge-no  { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); padding: 2px 7px; border-radius: 3px; font-size: 10px; }
+
+  /* ── Alerts ── */
+  .alert { padding: 12px 16px; border-radius: 3px; font-size: 13px; margin-bottom: 16px; }
+  .alert-warn { background: #1f1500; border: 1px solid #664400; color: #ffa94d; }
+  .alert-ok   { background: #0a1f0a; border: 1px solid #1a4a1a; color: var(--accent3); }
+  .alert-err  { background: #1f0a0a; border: 1px solid #4a1a1a; color: #ff6b6b; }
+
+  /* ── Upload zone ── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 4px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    margin-bottom: 16px;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: #00e5ff08;
+  }
+  .upload-zone .icon { font-size: 36px; margin-bottom: 10px; }
+  .upload-zone p { color: var(--muted); font-size: 13px; }
+  .upload-zone strong { color: var(--accent); }
+
+  /* ── Matrix display ── */
+  .matrix-table th, .matrix-table td { padding: 4px 6px; font-size: 11px; text-align: center; }
+  .matrix-table th { color: var(--accent); }
+  .matrix-table td { background: var(--surface2); border: 1px solid var(--border); border-radius: 2px; }
+  .matrix-table td.empty { color: var(--border); }
+
+  /* ── Legend ── */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .hint { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'IBM Plex Mono', monospace; }
+  .section-sep { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">HTE</div>
+  <h1><span>Activity Screen</span> — Pooling &amp; Deconvolution Pipeline</h1>
+</header>
+
+<nav>
+  <div class="tab active" id="tab-1" onclick="switchTab(1)">
+    <span>01 / Design</span><span class="badge" id="badge-1">–</span>
+  </div>
+  <div class="tab" id="tab-2" onclick="switchTab(2)">
+    <span>02 / Setup</span><span class="badge" id="badge-2">–</span>
+  </div>
+  <div class="tab" id="tab-3" onclick="switchTab(3)">
+    <span>03 / Analysis</span><span class="badge" id="badge-3">–</span>
+  </div>
+</nav>
+
+<main>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!--  PHASE 1: DESIGN                                   -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="phase active" id="phase-1">
+
+  <div class="card">
+    <div class="card-title">Screen Parameters</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Number of compounds</label>
+        <input type="number" id="n-compounds" value="36" min="4" max="80">
+        <span class="hint">4 – 80 (auto-fit to 96-well)</span>
+      </div>
+      <div class="form-group">
+        <label>Screening concentration (µM)</label>
+        <input type="number" id="conc-um" value="10" min="0.01" step="0.1">
+      </div>
+      <div class="form-group">
+        <label>Control replicates per type</label>
+        <input type="number" id="n-controls" value="4" min="2" max="8">
+        <span class="hint">Growth / DMSO / Kill</span>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:20px">
+      <label>Compound IDs (optional — one per line, or leave blank for CPD-0001…)</label>
+      <textarea id="compound-ids" placeholder="CPD-0001&#10;CPD-0002&#10;…"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="runDesign()">▶ Generate Design</button>
+      <button class="btn btn-secondary" onclick="resetAll()">↺ Reset</button>
+    </div>
+  </div>
+
+  <div id="design-output" style="display:none">
+    <div class="card">
+      <div class="card-title">Design Summary</div>
+      <div class="stats-grid" id="stats-row"></div>
+      <div class="alert alert-ok" id="design-alert"></div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Compound Matrix</div>
+        <div id="matrix-display"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">96-Well Plate Map</div>
+        <canvas id="plate-canvas" width="520" height="320"></canvas>
+        <div class="legend" id="plate-legend"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Pool Assignments</div>
+      <div class="tbl-wrap"><table id="pool-table">
+        <thead><tr><th>Pool ID</th><th>Type</th><th>Members</th><th>Count</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-accent2" onclick="switchTab(2)">→ Proceed to Setup</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!--  PHASE 2: SETUP                                    -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="phase" id="phase-2">
+
+  <div id="no-design-warn" class="alert alert-warn" style="display:none">
+    ⚠ Complete Phase 1 first to generate the plate design.
+  </div>
+
+  <div id="setup-content" style="display:none">
+    <div class="card">
+      <div class="card-title">Worklist Parameters</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Stock concentration (µM)</label>
+          <input type="number" id="stock-conc" value="10000" min="100">
+        </div>
+        <div class="form-group">
+          <label>Well volume (µL)</label>
+          <input type="number" id="well-vol" value="200" min="10">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="downloadLayout()">⬇ Download Plate Layout (CSV)</button>
+        <button class="btn btn-secondary" onclick="downloadWorklist()">⬇ Download Echo Worklist (CSV)</button>
+        <button class="btn btn-secondary" onclick="downloadGuide()">⬇ Download Plating Guide (CSV)</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Plate Layout Preview</div>
+      <div class="tbl-wrap"><table id="layout-preview-table">
+        <thead><tr><th>Well</th><th>Pool ID</th><th>Type</th><th>Members</th><th>Description</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-accent2" onclick="switchTab(3)">→ Proceed to Analysis</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!--  PHASE 3: ANALYSIS                                 -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="phase" id="phase-3">
+
+  <div id="no-design-warn2" class="alert alert-warn" style="display:none">
+    ⚠ Complete Phase 1 first to generate the plate design.
+  </div>
+
+  <div id="analysis-content" style="display:none">
+
+    <div class="card">
+      <div class="card-title">Upload OD600 Data</div>
+      <div class="upload-zone" id="drop-zone" onclick="document.getElementById('od-file').click()">
+        <div class="icon">📊</div>
+        <p><strong>Click to upload</strong> or drag &amp; drop your plate reader Excel file (.xlsx)</p>
+        <p style="margin-top:6px;font-size:11px">Supports tidy format (well / od600 columns) or plate-grid format (rows A–H, cols 1–12)</p>
+      </div>
+      <input type="file" id="od-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(event)">
+      <div id="file-status"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Hit-Calling Thresholds</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Inhibition threshold (%)</label>
+          <input type="number" id="inh-thresh" value="30" min="1" max="100">
+          <span class="hint">All 3 pools must exceed this</span>
+        </div>
+        <div class="form-group">
+          <label>Activity Z-score threshold</label>
+          <input type="number" id="z-thresh" value="1.5" min="0" step="0.1">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="run-analysis-btn" onclick="runAnalysis()" disabled>▶ Run Analysis</button>
+      </div>
+    </div>
+
+    <div id="analysis-output" style="display:none">
+
+      <div class="card">
+        <div class="card-title">Results Summary</div>
+        <div class="stats-grid" id="analysis-stats"></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">Pool Inhibition Heatmap</div>
+          <canvas id="heatmap-canvas" width="460" height="320"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Activity Volcano Plot</div>
+          <canvas id="volcano-canvas" width="460" height="320"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Compound Activity Results</div>
+        <div class="tbl-wrap"><table id="results-table">
+          <thead><tr>
+            <th>Compound</th><th>Row Pool</th><th>Col Pool</th><th>Diag Pool</th>
+            <th>Row Inh%</th><th>Col Inh%</th><th>Diag Inh%</th>
+            <th>Avg Inh%</th><th>Z-score</th><th>Hit</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <div class="btn-row" style="margin-top:16px">
+          <button class="btn btn-accent3" onclick="downloadResults()">⬇ Download Results (CSV)</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let DESIGN      = null;
+let LAYOUT_DF   = null;
+let RAW_DATA    = null;
+let RESULTS_DF  = null;
+
+const PLATE_ROWS = ['A','B','C','D','E','F','G','H'];
+const PLATE_COLS = [1,2,3,4,5,6,7,8,9,10,11,12];
+
+// ══════════════════════════════════════════
+//  TAB NAVIGATION
+// ══════════════════════════════════════════
+function switchTab(n) {
+  document.querySelectorAll('.phase').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('phase-'+n).classList.add('active');
+  document.getElementById('tab-'+n).classList.add('active');
+
+  if (n === 2) {
+    if (!DESIGN) { document.getElementById('no-design-warn').style.display='block'; document.getElementById('setup-content').style.display='none'; }
+    else         { document.getElementById('no-design-warn').style.display='none';  document.getElementById('setup-content').style.display='block'; renderLayoutPreview(); }
+  }
+  if (n === 3) {
+    if (!DESIGN) { document.getElementById('no-design-warn2').style.display='block'; document.getElementById('analysis-content').style.display='none'; }
+    else         { document.getElementById('no-design-warn2').style.display='none';  document.getElementById('analysis-content').style.display='block'; }
+  }
+}
+
+// ══════════════════════════════════════════
+//  PHASE 1 — DESIGN
+// ══════════════════════════════════════════
+function computeMatrixDims(nCompounds, nControls) {
+  let best = null, bestPad = 1e9;
+  for (let nc = 2; nc <= 25; nc++) {
+    let nr = Math.ceil(nCompounds / nc);
+    if (nr > nc) continue;
+    let nPools = nr + nc + nc;
+    let total  = nPools + nControls * 3;
+    if (total > 96) continue;
+    let pad = nr * nc - nCompounds;
+    if (pad < bestPad) { bestPad = pad; best = [nr, nc]; }
+  }
+  return best;
+}
+
+function runDesign() {
+  const nCpd  = parseInt(document.getElementById('n-compounds').value) || 36;
+  const conc  = parseFloat(document.getElementById('conc-um').value)   || 10;
+  const nCtrl = parseInt(document.getElementById('n-controls').value)  || 4;
+  const idsRaw = document.getElementById('compound-ids').value.trim();
+
+  let compoundIds = [];
+  if (idsRaw) {
+    compoundIds = idsRaw.split('\n').map(s=>s.trim()).filter(Boolean);
+    if (compoundIds.length !== nCpd) {
+      compoundIds = compoundIds.slice(0, nCpd);
+      while (compoundIds.length < nCpd) compoundIds.push(`CPD-${String(compoundIds.length+1).padStart(4,'0')}`);
+    }
+  } else {
+    for (let i=1; i<=nCpd; i++) compoundIds.push(`CPD-${String(i).padStart(4,'0')}`);
+  }
+
+  const dims = computeMatrixDims(nCpd, nCtrl);
+  if (!dims) { alert('Cannot fit '+nCpd+' compounds in 96 wells with '+nCtrl+' control replicates. Try reducing controls.'); return; }
+  const [nRows, nCols] = dims;
+  const nDiag = nCols;
+
+  // Build matrix
+  const padded = [...compoundIds];
+  while (padded.length < nRows*nCols) padded.push('EMPTY');
+  const matrix = [];
+  for (let r=0; r<nRows; r++) matrix.push(padded.slice(r*nCols, (r+1)*nCols));
+
+  // Build pools
+  const rowPools={}, colPools={}, diagPools={};
+  for (let r=0; r<nRows; r++) { let key=`R${String(r+1).padStart(2,'0')}`; rowPools[key]=matrix[r].filter(m=>m!=='EMPTY'); }
+  for (let c=0; c<nCols; c++) { let key=`C${String(c+1).padStart(2,'0')}`; colPools[key]=matrix.map(row=>row[c]).filter(m=>m!=='EMPTY'); }
+  for (let d=0; d<nDiag; d++) diagPools[`D${String(d+1).padStart(2,'0')}`]=[];
+  for (let r=0; r<nRows; r++) for (let c=0; c<nCols; c++) {
+    if (matrix[r][c]!=='EMPTY') { let d=(r+c)%nDiag; diagPools[`D${String(d+1).padStart(2,'0')}`].push(matrix[r][c]); }
+  }
+  const allPools = {...rowPools,...colPools,...diagPools};
+  const nPools   = Object.keys(allPools).length;
+  const nScreenWells  = nPools;
+  const nControlWells = nCtrl * 3;
+  const totalWells    = nScreenWells + nControlWells;
+
+  DESIGN = { nCompounds:nCpd, nRows, nCols, nDiag, concUm:conc, nControls:nCtrl,
+             matrix, rowPools, colPools, diagPools, allPools, nPools,
+             nScreenWells, nControlWells, totalWells, compoundIds };
+
+  buildLayout();
+  renderDesignOutput();
+
+  document.getElementById('badge-1').textContent = nCpd+' cpds';
+  document.getElementById('tab-1').classList.add('done');
+}
+
+// Build the layout dataframe (array of objects)
+function buildLayout() {
+  const wells = wellIterator96();
+  let idx=0; const rows=[];
+  const controls=[
+    ['CTRL_DMSO','DMSO','Neg ctrl (DMSO vehicle)'],
+    ['CTRL_GROWTH','MEDIA','Growth ctrl (no inhibitor)'],
+    ['CTRL_KILL','KILL','No-growth ctrl (positive kill)'],
+  ];
+  for (const [pid,ptype,desc] of controls)
+    for (let rep=1;rep<=DESIGN.nControls;rep++)
+      rows.push({plate:1, well:wells[idx++], poolId:pid, poolType:ptype, members:'', nMembers:0, description:`${desc} rep${rep}`});
+  for (const [pid,members] of Object.entries(DESIGN.allPools)) {
+    let ptype = pid.startsWith('R')?'ROW':pid.startsWith('C')?'COL':'DIAG';
+    rows.push({plate:1, well:wells[idx++], poolId:pid, poolType:ptype, members:members.join('|'), nMembers:members.length, description:`Pool ${pid} (compound alone)`});
+  }
+  LAYOUT_DF = rows;
+}
+
+function wellIterator96() {
+  const w=[];
+  for (const c of PLATE_COLS) for (const r of PLATE_ROWS) w.push(`${r}${c}`);
+  return w;
+}
+
+function renderDesignOutput() {
+  const d = DESIGN;
+  document.getElementById('design-output').style.display='block';
+
+  // Stats
+  const saving = Math.round(100*(1 - d.totalWells/Math.max(d.nCompounds,1)));
+  document.getElementById('stats-row').innerHTML = [
+    [d.nCompounds,'Compounds'],
+    [`${d.nRows} × ${d.nCols}`,'Matrix'],
+    [d.nPools,'Total Pools'],
+    [d.totalWells+'/96','Wells Used'],
+    [96-d.totalWells,'Wells Free'],
+    [saving+'%','vs Individual'],
+    ['3','Wells/Compound'],
+    [d.concUm+' µM','Conc'],
+  ].map(([v,l])=>`<div class="stat"><div class="stat-val">${v}</div><div class="stat-lbl">${l}</div></div>`).join('');
+
+  document.getElementById('design-alert').textContent =
+    `✓ Design fits in ${d.totalWells} wells. `+
+    `${d.nRows} row pools, ${d.nCols} col pools, ${d.nDiag} diagonal pools. `+
+    `Each compound appears in exactly 3 wells. No aminoglycoside — intrinsic activity screen.`;
+
+  // Matrix
+  let mhtml = `<table class="matrix-table"><thead><tr><th></th>${Array.from({length:d.nCols},(_,c)=>`<th>C${String(c+1).padStart(2,'0')}</th>`).join('')}</tr></thead><tbody>`;
+  for (let r=0;r<d.nRows;r++) {
+    mhtml += `<tr><th>R${String(r+1).padStart(2,'0')}</th>`;
+    for (let c=0;c<d.nCols;c++) {
+      const cpd = d.matrix[r][c];
+      const di  = (r+c)%d.nDiag;
+      mhtml += cpd==='EMPTY'
+        ? `<td class="empty">–</td>`
+        : `<td title="${cpd} → R${String(r+1).padStart(2,'0')} / C${String(c+1).padStart(2,'0')} / D${String(di+1).padStart(2,'0')}">${cpd}</td>`;
+    }
+    mhtml += '</tr>';
+  }
+  mhtml += '</tbody></table>';
+  document.getElementById('matrix-display').innerHTML = mhtml;
+
+  // Pool table
+  const tbody = document.querySelector('#pool-table tbody');
+  tbody.innerHTML='';
+  for (const [pid,members] of Object.entries(DESIGN.allPools)) {
+    const tr=document.createElement('tr');
+    const ptype=pid.startsWith('R')?'ROW':pid.startsWith('C')?'COL':'DIAG';
+    const colors={'ROW':'#4E79A7','COL':'#F28E2B','DIAG':'#59A14F'};
+    tr.innerHTML=`<td><span style="color:${colors[ptype]};font-weight:600">${pid}</span></td><td>${ptype}</td><td style="font-size:10px">${members.join(', ')||'—'}</td><td>${members.length}</td>`;
+    tbody.appendChild(tr);
+  }
+
+  // Plate map
+  drawPlateMap();
+}
+
+function drawPlateMap() {
+  const canvas = document.getElementById('plate-canvas');
+  const ctx    = canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const cx0=36, cy0=20, rw=(W-cx0-10)/12, rh=(H-cy0-10)/8;
+  const colorMap={ROW:'#4E79A7',COL:'#F28E2B',DIAG:'#59A14F',DMSO:'#E15759',MEDIA:'#76B7B2',KILL:'#B07AA1'};
+
+  // column labels
+  ctx.fillStyle='#6b7a99'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='center';
+  for (let c=0;c<12;c++) ctx.fillText(c+1, cx0+c*rw+rw/2, 14);
+  // row labels
+  ctx.textAlign='right';
+  for (let r=0;r<8;r++) ctx.fillText(PLATE_ROWS[r], cx0-5, cy0+r*rh+rh/2+4);
+
+  for (const row of LAYOUT_DF) {
+    const well=row.well, rLetter=well[0], cNum=parseInt(well.slice(1));
+    const r=PLATE_ROWS.indexOf(rLetter), c=cNum-1;
+    const x=cx0+c*rw+rw/2, y=cy0+r*rh+rh/2;
+    const rad=Math.min(rw,rh)*0.42;
+    ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2);
+    ctx.fillStyle=colorMap[row.poolType]||'#555'; ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.font=`bold ${Math.max(5,rad*0.52)}px IBM Plex Mono`; ctx.textAlign='center';
+    ctx.fillText(row.poolId, x, y+rad*0.18);
+  }
+
+  // Legend
+  const legendDiv=document.getElementById('plate-legend'); legendDiv.innerHTML='';
+  for (const [k,v] of Object.entries(colorMap))
+    legendDiv.innerHTML+=`<div class="legend-item"><div class="legend-dot" style="background:${v}"></div>${k}</div>`;
+}
+
+function resetAll() {
+  DESIGN=null; LAYOUT_DF=null; RAW_DATA=null; RESULTS_DF=null;
+  document.getElementById('design-output').style.display='none';
+  document.getElementById('badge-1').textContent='–';
+  document.getElementById('badge-2').textContent='–';
+  document.getElementById('badge-3').textContent='–';
+  ['tab-1','tab-2','tab-3'].forEach(id=>document.getElementById(id).classList.remove('done'));
+}
+
+// ══════════════════════════════════════════
+//  PHASE 2 — SETUP / DOWNLOADS
+// ══════════════════════════════════════════
+function renderLayoutPreview() {
+  const tbody=document.querySelector('#layout-preview-table tbody');
+  tbody.innerHTML='';
+  for (const row of LAYOUT_DF) {
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${row.well}</td><td>${row.poolId}</td><td>${row.poolType}</td><td style="font-size:10px">${row.members.replace(/\|/g,', ')||'—'}</td><td style="font-size:10px">${row.description}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function toCSV(rows, keys) {
+  const lines=[keys.join(',')];
+  for (const r of rows) lines.push(keys.map(k=>`"${(r[k]??'').toString().replace(/"/g,'""')}"`).join(','));
+  return lines.join('\n');
+}
+
+function downloadCSV(csv, filename) {
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click();
+}
+
+function downloadLayout() {
+  downloadCSV(toCSV(LAYOUT_DF,['plate','well','poolId','poolType','members','nMembers','description']), 'plate_layout.csv');
+}
+
+function downloadWorklist() {
+  const stockConc=parseFloat(document.getElementById('stock-conc').value)||10000;
+  const wellVol=parseFloat(document.getElementById('well-vol').value)||200;
+  const volNl=wellVol*1000;
+  const rows=[];
+  for (const row of LAYOUT_DF) {
+    if (!row.members) continue;
+    const members=row.members.split('|'); const n=members.length;
+    const cpvNl=Math.round((DESIGN.concUm/stockConc)*volNl/n/2.5)*2.5;
+    for (const cpd of members)
+      rows.push({source_plate:'COMPOUND_SOURCE',source_well:cpd,dest_plate:'DEST_P01',dest_well:row.well,volume_nl:cpvNl,compound_id:cpd,conc_um:DESIGN.concUm,step:'COMPOUND'});
+  }
+  downloadCSV(toCSV(rows,['source_plate','source_well','dest_plate','dest_well','volume_nl','compound_id','conc_um','step']),'echo_worklist.csv');
+}
+
+function downloadGuide() {
+  const poolToWell={};
+  for (const row of LAYOUT_DF) poolToWell[row.poolId]=row.well;
+  const rows=[];
+  for (let r=0;r<DESIGN.nRows;r++) for (let c=0;c<DESIGN.nCols;c++) {
+    const cpd=DESIGN.matrix[r][c]; if (cpd==='EMPTY') continue;
+    const rk=`R${String(r+1).padStart(2,'0')}`, ck=`C${String(c+1).padStart(2,'0')}`, d=(r+c)%DESIGN.nDiag;
+    const dk=`D${String(d+1).padStart(2,'0')}`;
+    for (const [pid,ptype] of [[rk,'ROW'],[ck,'COL'],[dk,'DIAG']]) {
+      const well=poolToWell[pid]||'?';
+      rows.push({compound_id:cpd,pool_id:pid,pool_type:ptype,well,note:`Add ${cpd} to well ${well} (${ptype} pool ${pid}, compound alone)`});
+    }
+  }
+  rows.sort((a,b)=>a.compound_id.localeCompare(b.compound_id)||a.pool_type.localeCompare(b.pool_type));
+  downloadCSV(toCSV(rows,['compound_id','pool_id','pool_type','well','note']),'plating_guide.csv');
+}
+
+// ══════════════════════════════════════════
+//  PHASE 3 — ANALYSIS
+// ══════════════════════════════════════════
+// Drag & drop
+const dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');handleFileObj(e.dataTransfer.files[0]);});
+
+function handleFile(e) { handleFileObj(e.target.files[0]); }
+
+function handleFileObj(file) {
+  if (!file) return;
+  document.getElementById('file-status').innerHTML=`<div class="alert alert-warn">⏳ Loading ${file.name}…</div>`;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try {
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      RAW_DATA=parseWorkbook(wb);
+      document.getElementById('file-status').innerHTML=`<div class="alert alert-ok">✓ Loaded ${file.name} — ${RAW_DATA.length} OD600 readings found.</div>`;
+      document.getElementById('run-analysis-btn').disabled=false;
+    } catch(err) {
+      document.getElementById('file-status').innerHTML=`<div class="alert alert-err">✗ Error: ${err.message}</div>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseWorkbook(wb) {
+  const all=[];
+  wb.SheetNames.forEach((sname,plateNum)=>{
+    const ws=wb.Sheets[sname];
+    const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    if (!raw || !raw.length) return;
+    // Try tidy format: find header row with 'well' and 'od' columns
+    const hdr=raw[0].map(v=>String(v).trim().toLowerCase());
+    const wellIdx=hdr.findIndex(h=>h.includes('well'));
+    const odIdx  =hdr.findIndex(h=>h.includes('od')||h.includes('600')||h.includes('absorbance'));
+    if (wellIdx>=0 && odIdx>=0) {
+      for (let i=1;i<raw.length;i++) {
+        const w=String(raw[i][wellIdx]||'').trim();
+        const v=parseFloat(raw[i][odIdx]);
+        if (w && !isNaN(v)) all.push({plate:plateNum+1,well:w,od600:v});
+      }
+      return;
+    }
+    // Grid format: find row with column numbers 1-12
+    let gridStart=-1;
+    for (let i=0;i<raw.length;i++) {
+      const nums=raw[i].map(v=>{try{return parseInt(v);}catch{return NaN;}}).filter(n=>!isNaN(n)&&n>=1&&n<=12);
+      if (nums.length>=8) { gridStart=i; break; }
+    }
+    if (gridStart<0) gridStart=0;
+    // Build col map
+    const colMap={};
+    raw[gridStart].forEach((v,j)=>{const n=parseInt(v);if(!isNaN(n)&&n>=1&&n<=12)colMap[j]=n;});
+    for (let i=gridStart+1;i<raw.length;i++) {
+      const rowLabel=String(raw[i][0]||'').trim().toUpperCase();
+      if (!PLATE_ROWS.includes(rowLabel)) continue;
+      for (const [j,cn] of Object.entries(colMap)) {
+        const v=parseFloat(raw[i][j]);
+        if (!isNaN(v)) all.push({plate:plateNum+1,well:`${rowLabel}${cn}`,od600:v});
+      }
+    }
+  });
+  if (!all.length) throw new Error('No OD600 data found. Expected tidy (well/od600 columns) or plate-grid (A–H rows, 1–12 columns) format.');
+  return all;
+}
+
+function runAnalysis() {
+  if (!DESIGN||!RAW_DATA) return;
+  const inhThresh=parseFloat(document.getElementById('inh-thresh').value)||30;
+  const zThresh  =parseFloat(document.getElementById('z-thresh').value)||1.5;
+
+  // Normalize
+  const poolToWell={};
+  for (const row of LAYOUT_DF) poolToWell[row.poolId]=row.well;
+  const wellToOD={};
+  for (const r of RAW_DATA) wellToOD[`${r.plate}:${r.well}`]=r.od600;
+
+  // Per-plate controls
+  const growthVals=[], killVals=[];
+  for (const row of LAYOUT_DF) {
+    const od=wellToOD[`${row.plate}:${row.well}`];
+    if (od===undefined) continue;
+    if (row.poolType==='MEDIA') growthVals.push(od);
+    if (row.poolType==='KILL')  killVals.push(od);
+  }
+  const growth=mean(growthVals)||1, kill=mean(killVals)||0;
+  const delta = (growth-kill)!==0 ? (growth-kill) : 1;
+
+  const poolInh={};
+  for (const row of LAYOUT_DF) {
+    if (!['ROW','COL','DIAG'].includes(row.poolType)) continue;
+    const od=wellToOD[`${row.plate}:${row.well}`];
+    if (od===undefined) { poolInh[row.poolId]=0; continue; }
+    poolInh[row.poolId]=Math.min(150,Math.max(0,100*(1-(od-kill)/delta)));
+  }
+
+  // Deconvolute
+  const candidates=[];
+  for (let r=0;r<DESIGN.nRows;r++) for (let c=0;c<DESIGN.nCols;c++) {
+    const cpd=DESIGN.matrix[r][c]; if (cpd==='EMPTY') continue;
+    const rk=`R${String(r+1).padStart(2,'0')}`, ck=`C${String(c+1).padStart(2,'0')}`;
+    const d=(r+c)%DESIGN.nDiag, dk=`D${String(d+1).padStart(2,'0')}`;
+    const ri=poolInh[rk]||0, ci=poolInh[ck]||0, di=poolInh[dk]||0;
+    const avg=(ri+ci+di)/3;
+    candidates.push({compound_id:cpd,row_pool:rk,col_pool:ck,diag_pool:dk,
+      row_inh:+ri.toFixed(2),col_inh:+ci.toFixed(2),diag_inh:+di.toFixed(2),
+      avg_inh:+avg.toFixed(2),row_hit:ri>inhThresh,col_hit:ci>inhThresh,diag_hit:di>inhThresh,
+      primary_hit:ri>inhThresh&&ci>inhThresh&&di>inhThresh});
+  }
+
+  // Z-score
+  const avgs=candidates.map(c=>c.avg_inh);
+  const mu=mean(avgs), sd=stddev(avgs)||1;
+  for (const c of candidates) {
+    c.z_score = +((c.avg_inh-mu)/sd).toFixed(3);
+    c.confirmed_hit = c.primary_hit && c.z_score>=zThresh;
+  }
+  candidates.sort((a,b)=>b.avg_inh-a.avg_inh);
+  RESULTS_DF=candidates;
+
+  renderAnalysisOutput();
+}
+
+function mean(arr) { return arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:0; }
+function stddev(arr) { if(arr.length<2)return 0; const m=mean(arr); return Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2,0)/(arr.length-1)); }
+
+function renderAnalysisOutput() {
+  const hits=RESULTS_DF.filter(r=>r.confirmed_hit);
+  document.getElementById('analysis-output').style.display='block';
+  document.getElementById('badge-3').textContent=hits.length+' hits';
+  document.getElementById('tab-3').classList.add('done');
+
+  document.getElementById('analysis-stats').innerHTML=[
+    [RESULTS_DF.length,'Compounds Scored'],
+    [hits.length,'Confirmed Hits'],
+    [RESULTS_DF.filter(r=>r.primary_hit).length,'Primary Hits'],
+    [RESULTS_DF.length?Math.round(hits.length/RESULTS_DF.length*100)+'%':'0%','Hit Rate'],
+    [+(mean(RESULTS_DF.map(r=>r.avg_inh))).toFixed(1)+'%','Avg Inhibition'],
+  ].map(([v,l])=>`<div class="stat"><div class="stat-val">${v}</div><div class="stat-lbl">${l}</div></div>`).join('');
+
+  renderHeatmap();
+  renderVolcano();
+
+  // Results table
+  const tbody=document.querySelector('#results-table tbody');
+  tbody.innerHTML='';
+  for (const r of RESULTS_DF) {
+    const tr=document.createElement('tr');
+    if (r.confirmed_hit) tr.classList.add('hit-row');
+    const fmt=v=>`<span style="color:${v>30?'#ff6b35':'inherit'}">${v}</span>`;
+    tr.innerHTML=`<td>${r.compound_id}</td><td>${r.row_pool}</td><td>${r.col_pool}</td><td>${r.diag_pool}</td>
+      <td>${fmt(r.row_inh)}</td><td>${fmt(r.col_inh)}</td><td>${fmt(r.diag_inh)}</td>
+      <td><b>${r.avg_inh}</b></td><td>${r.z_score}</td>
+      <td>${r.confirmed_hit?'<span class="badge-hit">HIT</span>':'<span class="badge-no">–</span>'}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function renderHeatmap() {
+  const canvas=document.getElementById('heatmap-canvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const {nRows,nCols,nDiag,matrix}=DESIGN;
+  const poolInh=getPoolInh();
+  const padL=50,padT=30,padR=80,padB=30;
+  const cw=(W-padL-padR)/nCols, ch=(H-padT-padB)/nRows;
+
+  ctx.font='11px IBM Plex Mono'; ctx.fillStyle='#6b7a99';
+  for (let c=0;c<nCols;c++) { ctx.textAlign='center'; ctx.fillText(`C${String(c+1).padStart(2,'0')}`,padL+c*cw+cw/2,16); }
+  for (let r=0;r<nRows;r++) { ctx.textAlign='right'; ctx.fillText(`R${String(r+1).padStart(2,'0')}`,padL-6,padT+r*ch+ch/2+4); }
+
+  for (let r=0;r<nRows;r++) for (let c=0;c<nCols;c++) {
+    const rk=`R${String(r+1).padStart(2,'0')}`,ck=`C${String(c+1).padStart(2,'0')}`,d=(r+c)%nDiag,dk=`D${String(d+1).padStart(2,'0')}`;
+    const avg=((poolInh[rk]||0)+(poolInh[ck]||0)+(poolInh[dk]||0))/3;
+    ctx.fillStyle=inhibitionColor(avg);
+    ctx.fillRect(padL+c*cw+1,padT+r*ch+1,cw-2,ch-2);
+    const cpd=matrix[r][c];
+    if (cpd!=='EMPTY') {
+      ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.font='7px IBM Plex Mono'; ctx.textAlign='center';
+      ctx.fillText(cpd,padL+c*cw+cw/2,padT+r*ch+ch/2+2);
+    }
+  }
+  // Colorbar
+  for (let y=0;y<H-padT-padB;y++) {
+    const t=y/(H-padT-padB);
+    ctx.fillStyle=inhibitionColor(100*(1-t));
+    ctx.fillRect(W-padR+10,padT+y,18,1);
+  }
+  ctx.fillStyle='#6b7a99'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='left';
+  ctx.fillText('100%',W-padR+32,padT+8); ctx.fillText('0%',W-padR+32,H-padB);
+  ctx.fillText('% Inh',W-padR+28,padT+((H-padT-padB)/2));
+}
+
+function inhibitionColor(pct) {
+  // green (0%) → yellow (50%) → red (100%)
+  const t=Math.max(0,Math.min(1,pct/100));
+  if (t<0.5) { const u=t*2; return `rgb(${Math.round(40+u*180)},${Math.round(160-u*30)},${Math.round(80-u*60)})`; }
+  else { const u=(t-0.5)*2; return `rgb(${Math.round(220+u*15)},${Math.round(130-u*100)},${Math.round(20)})`; }
+}
+
+function getPoolInh() {
+  const poolToWell={};
+  for (const row of LAYOUT_DF) poolToWell[row.poolId]=row.well;
+  const wellToOD={};
+  for (const r of RAW_DATA) wellToOD[`${r.plate}:${r.well}`]=r.od600;
+
+  const growthVals=[], killVals=[];
+  for (const row of LAYOUT_DF) {
+    const od=wellToOD[`${row.plate}:${row.well}`];
+    if (od===undefined) continue;
+    if (row.poolType==='MEDIA') growthVals.push(od);
+    if (row.poolType==='KILL') killVals.push(od);
+  }
+  const growth=mean(growthVals)||1, kill=mean(killVals)||0;
+  const delta=(growth-kill)||1;
+  const out={};
+  for (const row of LAYOUT_DF) {
+    if (!['ROW','COL','DIAG'].includes(row.poolType)) continue;
+    const od=wellToOD[`${row.plate}:${row.well}`];
+    out[row.poolId]=od!==undefined?Math.min(150,Math.max(0,100*(1-(od-kill)/delta))):0;
+  }
+  return out;
+}
+
+function renderVolcano() {
+  const canvas=document.getElementById('volcano-canvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const padL=55,padT=20,padR=20,padB=45;
+  const xs=RESULTS_DF.map(r=>r.z_score), ys=RESULTS_DF.map(r=>r.avg_inh);
+  const xmin=Math.min(...xs)-0.5,xmax=Math.max(...xs)+0.5;
+  const ymin=-5,ymax=Math.max(...ys)+10;
+
+  const toX=x=>padL+(x-xmin)/(xmax-xmin)*(W-padL-padR);
+  const toY=y=>H-padB-(y-ymin)/(ymax-ymin)*(H-padT-padB);
+
+  // Grid
+  ctx.strokeStyle='#2a3045'; ctx.lineWidth=0.5;
+  for (let v=0;v<=100;v+=20) { ctx.beginPath(); ctx.moveTo(padL,toY(v)); ctx.lineTo(W-padR,toY(v)); ctx.stroke(); }
+
+  const inhThresh=parseFloat(document.getElementById('inh-thresh').value)||30;
+  const zThresh  =parseFloat(document.getElementById('z-thresh').value)||1.5;
+
+  // Threshold lines
+  ctx.strokeStyle='#ff6b35'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(padL,toY(inhThresh)); ctx.lineTo(W-padR,toY(inhThresh)); ctx.stroke();
+  ctx.strokeStyle='#6b7a99';
+  ctx.beginPath(); ctx.moveTo(toX(zThresh),padT); ctx.lineTo(toX(zThresh),H-padB); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Points
+  const seed=[0.31,0.72,0.14,0.55,0.83,0.27,0.64,0.91,0.08,0.46];
+  RESULTS_DF.forEach((r,i)=>{
+    const jx=(seed[i%10]-0.5)*0.3, jy=(seed[(i+3)%10]-0.5)*1.5;
+    const px=toX(r.z_score+jx), py=toY(r.avg_inh+jy);
+    ctx.beginPath(); ctx.arc(px,py,4,0,Math.PI*2);
+    ctx.fillStyle=r.confirmed_hit?'#ff4757':'#4E79A7'; ctx.globalAlpha=0.85; ctx.fill();
+    ctx.globalAlpha=1;
+    if (r.confirmed_hit) {
+      ctx.fillStyle='#ff4757'; ctx.font='bold 8px IBM Plex Mono'; ctx.textAlign='center';
+      ctx.fillText(r.compound_id,px,py-7);
+    }
+  });
+
+  // Axes
+  ctx.fillStyle='#6b7a99'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='center';
+  ctx.fillText('Activity Z-score',W/2,H-5);
+  ctx.save(); ctx.translate(12,H/2); ctx.rotate(-Math.PI/2); ctx.fillText('Avg % Inhibition',0,0); ctx.restore();
+  for (let x=Math.ceil(xmin);x<=xmax;x++) { ctx.textAlign='center'; ctx.fillText(x,toX(x),H-padB+12); }
+  for (let v=0;v<=100;v+=20) { ctx.textAlign='right'; ctx.fillText(v+'%',padL-4,toY(v)+3); }
+
+  // Legend
+  ctx.fillStyle='#ff4757'; ctx.beginPath(); ctx.arc(padL+10,padT+10,4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#6b7a99'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='left'; ctx.fillText('Confirmed hit',padL+18,padT+13);
+  ctx.fillStyle='#4E79A7'; ctx.beginPath(); ctx.arc(padL+95,padT+10,4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#6b7a99'; ctx.fillText('Non-hit',padL+103,padT+13);
+}
+
+function downloadResults() {
+  downloadCSV(toCSV(RESULTS_DF,['compound_id','row_pool','col_pool','diag_pool','row_inh','col_inh','diag_inh','avg_inh','z_score','confirmed_hit']),'activity_results.csv');
+}
+</script>
+</body>
+</html>
